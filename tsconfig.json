@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": [
+    "packages/**/*.ts",
+    "packages/**/*.tsx",
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+    "tests/**/*.ts",
+    "prisma/**/*.ts",
+    "*.ts"
+  ],
+  "exclude": ["node_modules", "**/node_modules", "**/.next", "**/dist", "tests/e2e/**"]
+}

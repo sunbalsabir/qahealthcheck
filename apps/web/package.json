@@ -1,0 +1,30 @@
+{
+  "name": "@qualovix/web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 5000",
+    "build": "next build",
+    "start": "next start -p 5000",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@qualovix/audit-engine": "1.0.0",
+    "@qualovix/data": "1.0.0",
+    "@qualovix/reporting": "1.0.0",
+    "@qualovix/scanners": "1.0.0",
+    "@qualovix/shared": "1.0.0",
+    "clsx": "^2.1.1",
+    "jose": "^6.0.0",
+    "lucide-react": "^0.460.0",
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^2.5.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "tailwindcss": "^4.0.0"
+  }
+}

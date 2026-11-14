@@ -1,0 +1,1482 @@
+You are a senior full-stack engineer, QA automation architect, and security-conscious SaaS developer.
+
+
+I want you to build a production-quality MVP called Qualovix QA Auditor.
+
+
+CONTEXT
+Qualovix is a software quality engineering agency offering:
+
+
+      • Manual QA
+      • Test Automation
+      • API Testing
+      • Regression Testing
+      • Performance Testing
+      • Accessibility Testing
+      • QA Process Improvement
+
+We want to offer a Free QA Health Check to potential clients through LinkedIn.
+
+
+The problem is that only 3 people run the agency, so we cannot manually test every website submitted.
+
+
+We therefore need a web application that accepts a public website URL, automatically performs a broad set
+of QA/technical checks, analyzes the results, assigns severity, and generates a professional Qualovix-
+branded QA report.
+
+
+IMPORTANT: This is NOT intended to replace a complete professional manual QA engagement.
+
+
+The product should clearly describe itself as:
+
+
+"Automated QA Health Check reviewed by Qualovix QA Engineers."
+
+
+
+
+PRIMARY USER FLOW
+The user opens:
+
+
+Qualovix QA Auditor
+
+
+They see:
+
+
+"Get a Free QA Health Check"
+
+
+Subtitle:
+
+
+
+
+                                                     1
+"Enter your website URL and we'll automatically analyze common quality, usability, accessibility,
+performance, and technical issues."
+
+
+Input:
+
+
+Website URL
+
+
+Example:
+
+
+https://example.com
+
+
+Button:
+
+
+"Start Free QA Audit"
+
+
+Optional fields:
+
+
+      • Company name
+      • Contact name
+      • Email
+      • Industry
+      • What would you like us to focus on?
+
+The user submits the URL.
+
+
+The application creates an audit job.
+
+
+Show a progress screen:
+
+
+    1. Discovering pages
+    2. Checking links
+    3. Testing page performance
+    4. Checking accessibility
+    5. Detecting console errors
+    6. Checking responsive behavior
+    7. Checking forms
+    8. Running technical checks
+    9. Analyzing findings
+   10. Generating QA report
+
+Then display:
+
+
+QA Health Score
+Example:
+
+
+
+
+                                                      2
+78 / 100
+
+
+with categories:
+
+
+Functional QA Accessibility Performance Responsive QA Technical QA Security Baseline SEO/Technical
+Quality UX Quality
+
+
+Then display:
+
+
+Critical Issues High Priority Issues Medium Priority Issues Low Priority Issues Passed Checks
+
+
+Finally:
+
+
+"Download QA Report"
+
+
+and:
+
+
+"Talk to Qualovix"
+
+
+
+
+IMPORTANT ARCHITECTURE
+Build this as a modular system so that individual scanners can be replaced or upgraded later.
+
+
+Use a structure similar to:
+
+
+Frontend ↓ Backend/API ↓ Audit Job Queue ↓ Crawler ↓ Individual QA Scanners ↓ Finding Normalizer ↓
+Severity Engine ↓ AI Analysis Layer ↓ Report Generator ↓ Database
+
+
+Do NOT create one giant script.
+
+
+Each scanner should have a clear interface.
+
+
+Example:
+
+
+Scanner → scan(url) → returns normalized findings
+
+
+
+
+TECH STACK
+Use a modern, maintainable stack.
+
+
+Preferred:
+
+
+
+
+                                                      3
+Frontend:
+
+
+       • Next.js
+       • TypeScript
+       • Tailwind CSS
+       • shadcn/ui or another clean component system
+
+Backend:
+
+
+       • Node.js
+       • TypeScript
+
+Browser automation:
+
+
+       • Playwright
+
+Database:
+
+
+       • PostgreSQL
+
+ORM:
+
+
+       • Prisma
+
+Job processing:
+
+
+       • BullMQ + Redis
+
+Reports:
+
+
+       • Generate professional PDF reports
+
+Deployment should be straightforward for a small agency.
+
+
+Use environment variables for:
+
+
+DATABASE_URL REDIS_URL OPENAI_API_KEY or ANTHROPIC_API_KEY etc.
+
+
+Never hardcode API keys.
+
+
+
+
+AUDIT ENGINE
+The core of the application is the Audit Engine.
+
+
+When a URL is submitted:
+
+
+
+
+                                                   4
+1. URL validation
+Validate:
+
+
+      • valid HTTP/HTTPS URL
+      • reject localhost
+      • reject private IP addresses
+      • reject internal network addresses
+      • prevent SSRF
+      • prevent file:// URLs
+      • prevent javascript: URLs
+      • prevent arbitrary protocol abuse
+
+Only allow public websites.
+
+
+Set reasonable:
+
+
+      • request timeout
+      • page timeout
+      • crawl depth
+      • maximum pages
+      • maximum redirects
+      • maximum response size
+
+Prevent the audit system from being abused to attack internal infrastructure.
+
+
+
+
+2. WEBSITE CRAWLER
+Use Playwright.
+
+
+Start with the submitted URL.
+
+
+Discover internal links.
+
+
+By default:
+
+
+      • Maximum 10 pages for free audit
+      • Same-domain URLs only
+      • Ignore external links for crawling
+      • Ignore mailto:
+      • Ignore tel:
+      • Ignore downloads
+      • Ignore logout/account deletion links
+      • Avoid duplicate URLs
+      • Normalize URLs
+
+
+
+
+                                                     5
+Allow configuration later for:
+
+
+MAX_PAGES MAX_DEPTH TIMEOUT
+
+
+The crawler should collect:
+
+
+      • URL
+      • title
+      • status code
+      • response time
+      • content type
+      • links
+      • images
+      • scripts
+      • stylesheets
+      • forms
+      • buttons
+      • headings
+      • meta information
+      • console messages
+      • network errors
+
+
+
+
+3. BROKEN LINK CHECKER
+Detect:
+
+
+      • 404
+      • 403
+      • 500
+      • 502
+      • 503
+      • timeout
+      • DNS errors
+      • failed resources
+
+Differentiate:
+
+
+Critical: Important application functionality is inaccessible.
+
+
+High: Important internal page/resource is broken.
+
+
+Medium: Non-critical broken link.
+
+
+Low: Minor resource issue.
+
+
+
+
+                                                        6
+Do NOT blindly classify every 404 as critical.
+
+
+
+
+4. CONSOLE ERROR CHECKER
+Use Playwright to capture:
+
+
+      • console.error
+      • uncaught exceptions
+      • page errors
+      • failed network requests
+
+Example finding:
+
+
+Title: "JavaScript error detected on homepage"
+
+
+Severity: High
+
+
+Evidence: actual console error
+
+
+URL: https://example.com
+
+
+Impact: "Client-side JavaScript errors may affect interactive functionality."
+
+
+Do not expose sensitive tokens, cookies, authorization headers, or personal information in reports.
+
+
+
+
+5. RESPONSIVE QA
+Use Playwright to test at least:
+
+
+Mobile: 375x812
+
+
+Tablet: 768x1024
+
+
+Desktop: 1440x900
+
+
+Detect obvious problems such as:
+
+
+      • horizontal overflow
+      • content outside viewport
+      • overlapping elements
+      • buttons outside viewport
+      • unreadable text
+
+
+
+
+                                                        7
+       • navigation overflow
+       • images exceeding viewport
+       • elements with suspicious dimensions
+
+Take screenshots where useful.
+
+
+Store evidence securely.
+
+
+
+
+6. ACCESSIBILITY
+Implement automated accessibility checks using a reputable library such as axe-core through Playwright.
+
+
+Check:
+
+
+       • missing alt attributes
+       • insufficient labels
+       • form labeling
+       • heading hierarchy
+       • button accessibility
+       • link accessibility
+       • color contrast where detectable
+       • ARIA issues
+       • keyboard accessibility where automatable
+       • duplicate IDs
+       • page language
+
+Do not claim WCAG certification.
+
+
+Report as:
+
+
+"Automated accessibility findings"
+
+
+not:
+
+
+"WCAG compliant."
+
+
+
+
+7. PERFORMANCE
+Collect basic performance metrics.
+
+
+Use Lighthouse or equivalent tooling where practical.
+
+
+
+
+                                                        8
+Check:
+
+
+     • performance score
+     • page load behavior
+     • largest contentful paint
+     • cumulative layout shift
+     • total blocking time / equivalent
+     • image optimization
+     • render-blocking resources
+     • oversized assets
+     • excessive requests
+
+Create a category score:
+
+
+Performance: 0–100
+
+
+Explain that automated performance results vary based on environment and network conditions.
+
+
+
+
+8. HTML / TECHNICAL QA
+Check:
+
+
+     • missing page title
+     • duplicate titles
+     • missing meta description
+     • duplicate IDs
+     • broken images
+     • missing alt text
+     • missing viewport
+     • malformed/obvious HTML problems
+     • missing canonical where appropriate
+     • missing language attribute
+     • excessive page size
+     • suspicious redirect chains
+
+These are QA/technical findings, not a full SEO audit.
+
+
+
+
+9. FORM QA
+Automatically discover forms.
+
+
+
+
+                                                         9
+Check basic properties:
+
+
+     • form exists
+     • input labels
+     • required fields
+     • input types
+     • email input types
+     • submit controls
+     • obvious missing labels
+     • action/method information
+
+IMPORTANT:
+
+
+Do NOT submit potentially destructive forms automatically.
+
+
+Never automatically:
+
+
+     • create accounts
+     • make payments
+     • delete accounts
+     • send messages
+     • submit contact forms
+     • upload files
+     • change passwords
+     • perform transactions
+
+Instead report:
+
+
+"Form detected — manual functional testing recommended."
+
+
+
+
+10. BASIC SECURITY BASELINE
+Do NOT perform penetration testing.
+
+
+Only perform passive/basic checks such as:
+
+
+     • HTTPS availability
+     • HTTP → HTTPS redirect
+     • security headers
+     • HSTS
+     • CSP presence
+     • X-Content-Type-Options
+     • Referrer-Policy
+     • X-Frame-Options / frame protection
+     • cookie security flags where safely observable
+
+
+
+
+                                                       10
+Do not perform:
+
+
+      • brute force
+      • credential attacks
+      • exploit attempts
+      • destructive testing
+      • SQL injection attempts
+      • authentication bypass
+      • denial-of-service testing
+      • aggressive vulnerability scanning
+
+Clearly label this category:
+
+
+"Security Baseline — Not a Penetration Test"
+
+
+
+
+11. UX / BASIC FUNCTIONAL HEURISTICS
+Automatically detect obvious issues.
+
+
+Examples:
+
+
+      • buttons without accessible names
+      • links without text
+      • forms without labels
+      • empty buttons
+      • images without alt text
+      • suspiciously tiny click targets
+      • horizontal scrolling
+      • broken navigation links
+      • missing visible feedback where detectable
+      • empty states
+      • obvious layout problems
+
+Do NOT pretend these automated heuristics represent complete UX testing.
+
+
+
+
+FINDING MODEL
+Every finding should have a normalized structure.
+
+
+Example:
+
+
+{ id, category, title, description, severity, confidence, url, evidence, recommendation, detectedBy,
+timestamp }
+
+
+
+
+                                                      11
+Severity:
+
+
+CRITICAL HIGH MEDIUM LOW INFO
+
+
+Confidence:
+
+
+HIGH MEDIUM LOW
+
+
+Every finding must include evidence.
+
+
+Do not generate findings without evidence.
+
+
+
+
+SEVERITY ENGINE
+Create a deterministic severity system.
+
+
+Example:
+
+
+CRITICAL: Issue prevents major user/business functionality.
+
+
+HIGH: Major functional, accessibility, reliability, or usability issue.
+
+
+MEDIUM: Important quality issue but workaround exists.
+
+
+LOW: Minor quality issue.
+
+
+INFO: Observation or recommendation.
+
+
+The AI should NOT arbitrarily change severity without evidence.
+
+
+Use deterministic rules first.
+
+
+AI may help explain/prioritize findings, but the underlying evidence must remain available.
+
+
+
+
+AI ANALYSIS
+Add an optional AI layer.
+
+
+Input:
+
+
+Normalized audit findings.
+
+
+
+
+                                                          12
+Ask the AI to:
+
+
+     1. Remove duplicate findings.
+     2. Group related findings.
+     3. Improve descriptions.
+     4. Explain business impact.
+     5. Suggest remediation.
+     6. Create an executive summary.
+     7. Identify the top 5 issues.
+     8. Generate QA recommendations.
+
+The AI must NOT invent findings.
+
+
+Every AI-generated statement must be traceable to actual scanner evidence.
+
+
+Use structured JSON output.
+
+
+If the AI API fails, the system must still generate the report using deterministic findings.
+
+
+
+
+QA SCORE
+Create an overall score from:
+
+
+Functional Quality 25%
+
+
+Performance 15%
+
+
+Accessibility 15%
+
+
+Responsive Quality 15%
+
+
+Technical Quality 10%
+
+
+Security Baseline 10%
+
+
+UX Heuristics 10%
+
+
+Calculate category scores based on actual findings.
+
+
+Show:
+
+
+Overall QA Health Score
+
+
+0–49: Needs Significant Attention
+
+
+
+
+                                                       13
+50–69: Needs Improvement
+
+
+70–84: Good
+
+
+85–94: Very Good
+
+
+95–100: Excellent
+
+
+IMPORTANT:
+
+
+The score is an internal heuristic.
+
+
+Clearly state:
+
+
+"This score is an automated QA health indicator and is not a certification."
+
+
+
+
+REPORT
+Generate a professional PDF.
+
+
+Brand:
+
+
+QUALOVIX
+
+
+Title:
+
+
+FREE QA HEALTH CHECK
+
+
+Subtitle:
+
+
+Automated QA Assessment Reviewed by Qualovix QA Engineers
+
+
+Include:
+
+
+Company Website Audit date
+
+
+Executive Summary
+
+
+Overall QA Score
+
+
+Category Scores
+
+
+Top Issues
+
+
+
+
+                                                      14
+Critical Findings
+
+
+High Priority Findings
+
+
+Medium Findings
+
+
+Low Priority Findings
+
+
+Passed Checks
+
+
+Recommended Next Steps
+
+
+Qualovix Services
+
+
+CTA:
+
+
+"Want a deeper assessment?"
+
+
+"Talk to Qualovix"
+
+
+Include:
+
+
+Manual QA Automation Testing API Testing Regression Testing Performance Testing
+
+
+Disclaimer:
+
+
+"This report is based primarily on automated analysis and QA heuristics. It is not a complete manual
+functional test, penetration test, security audit, accessibility certification, or guarantee that all defects have
+been identified."
+
+
+Make the PDF visually professional enough to send directly to a potential client.
+
+
+
+
+ADMIN DASHBOARD
+Create an internal Qualovix dashboard.
+
+
+Features:
+
+
+       • Login
+       • Audit list
+       • Search
+       • Filter by status
+       • Filter by score
+       • Filter by severity
+
+
+
+                                                        15
+     • View audit
+     • View findings
+     • Download report
+     • Mark audit as reviewed
+     • Add QA engineer notes
+     • Change finding status
+     • Delete audit
+
+Statuses:
+
+
+PENDING SCANNING ANALYZING READY_FOR_REVIEW REVIEWED REPORT_GENERATED FAILED
+
+
+
+
+HUMAN QA REVIEW
+This is extremely important.
+
+
+The admin should be able to review automated findings before sending the report.
+
+
+For every finding:
+
+
+[Keep] [Ignore] [Edit] [Change Severity]
+
+
+Allow:
+
+
+"QA Engineer Note"
+
+
+Example:
+
+
+Automated finding: "Broken link detected"
+
+
+QA Engineer: "Confirmed manually — reproduces in Chrome and Firefox."
+
+
+The final report should only include approved findings.
+
+
+This is the layer that makes the product:
+
+
+Automated + Human QA Reviewed
+
+
+rather than simply another website scanner.
+
+
+
+
+                                                     16
+LEAD CAPTURE
+When someone requests an audit, collect:
+
+
+Company name Contact name Business email Website Industry Optional message
+
+
+Store this as a lead.
+
+
+Admin dashboard should show:
+
+
+Lead Audit Score Status Date Follow-up status
+
+
+Follow-up status:
+
+
+NEW CONTACTED QUALIFIED CONVERTED NOT_INTERESTED
+
+
+Do NOT spam users automatically.
+
+
+
+
+FRONTEND DESIGN
+Make the UI look like a modern B2B SaaS product.
+
+
+Brand should feel:
+
+
+Professional Technical Modern Trustworthy
+
+
+Use:
+
+
+White/light background Dark text Clean cards Subtle gradients Professional typography Clear severity
+badges
+
+
+Do not make it look like a generic AI website.
+
+
+Use Qualovix branding throughout.
+
+
+Homepage:
+
+
+Hero:
+
+
+"Know What's Breaking Before Your Users Do."
+
+
+Subheading:
+
+
+
+
+                                                    17
+"Get a free automated QA health check of your website — reviewed by QA engineers."
+
+
+CTA:
+
+
+"Start Free QA Audit"
+
+
+Secondary CTA:
+
+
+"How It Works"
+
+
+Show:
+
+
+       1. Submit URL
+       2. Automated QA Scan
+       3. QA Engineer Review
+       4. Receive Report
+
+
+
+
+API DESIGN
+Create clean REST APIs.
+
+
+Example:
+
+
+POST /api/audits
+
+
+GET /api/audits/:id
+
+
+GET /api/audits/:id/findings
+
+
+POST /api/audits/:id/review
+
+
+POST /api/audits/:id/report
+
+
+GET /api/audits/:id/report
+
+
+GET /api/leads
+
+
+POST /api/leads
+
+
+Use validation with Zod or equivalent.
+
+
+
+
+                                                  18
+DATABASE
+Create Prisma models for:
+
+
+User Audit AuditPage Finding AuditCategoryScore AuditReview Lead Report
+
+
+Use proper relationships.
+
+
+
+
+SECURITY
+This application itself must be security-conscious.
+
+
+Implement:
+
+
+      • SSRF protection
+      • URL validation
+      • rate limiting
+      • authentication for admin
+      • authorization
+      • input validation
+      • output encoding
+      • secure headers
+      • encrypted secrets
+      • no API keys exposed to frontend
+      • audit isolation
+      • safe screenshot storage
+      • file size limits
+      • job timeout
+      • crawler limits
+
+Never allow a user to use the scanner to access:
+
+
+localhost 127.0.0.1 0.0.0.0 private IPv4 ranges private IPv6 ranges cloud metadata endpoints internal DNS
+internal services
+
+
+Re-check redirects so SSRF cannot occur after redirection.
+
+
+
+
+RATE LIMITING
+Free public audits must be rate limited.
+
+
+Example initial limits:
+
+
+
+
+                                                      19
+3 audits per IP per day
+
+
+and:
+
+
+10 pages maximum per audit
+
+
+Make these configurable through environment variables.
+
+
+Do not rely solely on IP because of shared networks.
+
+
+Create a basic abuse-prevention mechanism.
+
+
+
+
+TESTING
+Write tests for the application.
+
+
+At minimum:
+
+
+Unit tests:
+
+
+       • URL validation
+       • SSRF protection
+       • severity engine
+       • score calculation
+       • finding normalization
+
+Integration tests:
+
+
+       • create audit
+       • retrieve audit
+       • findings
+       • report generation
+
+Playwright tests:
+
+
+       • homepage
+       • URL submission
+       • progress state
+       • results page
+       • admin login
+       • audit review
+
+
+
+
+                                                       20
+MOCK MODE
+Very important for development.
+
+
+Create:
+
+
+AUDIT_MOCK_MODE=true
+
+
+When enabled:
+
+
+Do not actually crawl websites.
+
+
+Generate realistic mock audit data.
+
+
+This allows frontend development without repeatedly running expensive scans.
+
+
+
+
+LOCAL DEVELOPMENT
+Create:
+
+
+README.md
+
+
+with exact instructions:
+
+
+    1. Clone project
+    2. Install dependencies
+    3. Configure .env
+    4. Start PostgreSQL
+    5. Start Redis
+    6. Run migrations
+    7. Start application
+    8. Start worker
+    9. Run tests
+
+Include Docker Compose for:
+
+
+PostgreSQL Redis
+
+
+The application should be runnable locally with minimal setup.
+
+
+
+
+                                                    21
+PROJECT STRUCTURE
+Use a clean structure such as:
+
+
+/apps /web /worker
+
+
+/packages /audit-engine /scanners /reporting /shared
+
+
+or another architecture you believe is better.
+
+
+Keep scanner implementations independent.
+
+
+Example:
+
+
+scanners/ accessibility/ performance/ broken-links/ console/ responsive/ forms/ security/ technical/ ux/
+
+
+
+
+IMPORTANT PRODUCT PRINCIPLES
+    1. Never fabricate a QA finding.
+
+
+    2. Every finding must have evidence.
+
+
+    3. Never claim an automated audit is equivalent to full manual QA.
+
+
+    4. Never perform destructive testing.
+
+
+    5. Never perform penetration testing.
+
+
+    6. Never submit customer forms automatically.
+
+
+    7. Never expose credentials or sensitive information.
+
+
+    8. Never allow SSRF.
+
+
+    9. The system must continue working if the AI provider is unavailable.
+
+
+   10. Human QA review must be built into the workflow.
+
+
+   11. The architecture must allow new scanners to be added later.
+
+
+   12. The report must be good enough to send to a prospective client.
+
+
+
+
+                                                     22
+FUTURE FEATURES
+Architect the system so these can be added later:
+
+
+         • GitHub repository audit
+         • GitLab audit
+         • API endpoint audit
+         • Postman collection analysis
+         • Cypress test coverage analysis
+         • Playwright test analysis
+         • test case generation
+         • AI-generated test scenarios
+         • automated regression tests
+         • scheduled monitoring
+         • client dashboard
+         • white-label reports
+         • email delivery
+         • Slack notifications
+         • Jira integration
+
+Do NOT implement all future features now.
+
+
+Build a strong MVP foundation.
+
+
+
+
+YOUR WORKING PROCESS
+Do not just generate a huge amount of code immediately.
+
+
+First:
+
+
+     1. Inspect the current directory/repository.
+     2. Determine whether a project already exists.
+     3. If an existing project exists, preserve useful code.
+     4. Propose the architecture briefly.
+     5. Create the project structure.
+     6. Implement the MVP incrementally.
+     7. Run tests.
+     8. Fix errors.
+     9. Run lint/type checks.
+    10. Verify the application works.
+    11. Provide exact commands to run it.
+
+If a technology/library has changed or you are unsure about its current API, check the current official
+documentation before implementing it.
+
+
+
+
+                                                        23
+Prefer stable, well-maintained open-source libraries.
+
+
+
+
+MVP PRIORITY
+If the complete system is too large to implement in one pass, prioritize in this exact order:
+
+
+P0:
+
+
+      • URL submission
+      • SSRF protection
+      • Playwright crawler
+      • 10-page crawl limit
+      • broken links
+      • console errors
+      • responsive checks
+      • accessibility
+      • basic performance
+      • finding normalization
+      • severity
+      • QA score
+      • results dashboard
+
+P1:
+
+
+      • AI analysis
+      • PDF report
+      • admin dashboard
+      • human review
+
+P2:
+
+
+      • lead management
+      • email delivery
+      • advanced security baseline
+      • additional scanners
+
+Do not sacrifice security or reliability just to add more features.
+
+
+
+
+FINAL DELIVERABLE
+At the end, I want a working local MVP where I can run:
+
+
+npm run dev
+
+
+
+
+                                                        24
+and visit:
+
+
+http://localhost:3000
+
+
+I should be able to enter:
+
+
+https://example.com
+
+
+and receive an actual automated QA audit.
+
+
+The final experience should feel like a real Qualovix product, not a developer prototype.
+
+
+Build it step-by-step, test it, and fix implementation issues rather than stopping after generating the initial
+files.
+
+
+
+
+                                                       25
+

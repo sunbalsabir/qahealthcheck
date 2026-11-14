@@ -1,0 +1,328 @@
+// Qualovix QA Auditor — data model
+// Canonical datastore is PostgreSQL. See packages/data for the repository
+// abstraction that also supports an in-memory driver for zero-infra dev.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  QA_ENGINEER
+}
+
+enum AuditStatus {
+  PENDING
+  SCANNING
+  ANALYZING
+  READY_FOR_REVIEW
+  REVIEWED
+  REPORT_GENERATED
+  FAILED
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum Confidence {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum FindingCategory {
+  FUNCTIONAL
+  ACCESSIBILITY
+  PERFORMANCE
+  RESPONSIVE
+  TECHNICAL
+  SECURITY
+  UX
+}
+
+// Human QA review decision for a single automated finding.
+enum FindingStatus {
+  PENDING_REVIEW
+  KEPT
+  IGNORED
+  EDITED
+}
+
+enum LeadFollowUpStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  NOT_INTERESTED
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  role         UserRole @default(QA_ENGINEER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  reviews  AuditReview[]
+  findings Finding[]     @relation("FindingReviewer")
+
+  @@map("users")
+}
+
+model Audit {
+  id            String      @id @default(cuid())
+  url           String
+  normalizedUrl String
+  domain        String
+  status        AuditStatus @default(PENDING)
+
+  // Progress reporting for the public wait screen.
+  currentStage   String?
+  stageIndex     Int     @default(0)
+  totalStages    Int     @default(10)
+  progressDetail String?
+
+  overallScore Int?
+  scoreBand    String?
+
+  requestedIp   String?
+  requestedById String?
+  mockMode      Boolean @default(false)
+
+  startedAt  DateTime?
+  finishedAt DateTime?
+  durationMs Int?
+
+  errorMessage String?
+
+  // AI analysis output. Null when the AI layer is disabled or unavailable.
+  executiveSummary String?
+  topIssues        Json?
+  recommendations  Json?
+  // Checks that ran and found nothing wrong, shown as "Passed Checks".
+  passedChecks     Json?
+  // Non-fatal scanner warnings (a check that could not run on this site).
+  scannerWarnings  Json?
+  aiAnalysisUsed   Boolean @default(false)
+  aiFailureReason  String?
+
+  engineVersion String  @default("1.0.0")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  pages          AuditPage[]
+  findings       Finding[]
+  categoryScores AuditCategoryScore[]
+  review         AuditReview?
+  reports        Report[]
+
+  @@index([status])
+  @@index([domain])
+  @@index([createdAt])
+  @@map("audits")
+}
+
+model AuditPage {
+  id      String @id @default(cuid())
+  auditId String
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  url            String
+  normalizedUrl  String
+  depth          Int      @default(0)
+  title          String?
+  statusCode     Int?
+  responseTimeMs Int?
+  contentType    String?
+  byteSize       Int?
+
+  // Aggregate inventory captured by the crawler; the scanners read from here
+  // so a site is only ever crawled once.
+  linkCount       Int @default(0)
+  imageCount      Int @default(0)
+  scriptCount     Int @default(0)
+  stylesheetCount Int @default(0)
+  formCount       Int @default(0)
+  buttonCount     Int @default(0)
+  headingCount    Int @default(0)
+
+  snapshot Json?
+
+  createdAt DateTime @default(now())
+
+  @@unique([auditId, normalizedUrl])
+  @@index([auditId])
+  @@map("audit_pages")
+}
+
+model Finding {
+  id      String @id @default(cuid())
+  auditId String
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  // Stable rule identifier, e.g. "broken-links.internal-404".
+  ruleId     String
+  category   FindingCategory
+  title      String
+  description String
+  severity   Severity
+  confidence Confidence
+
+  url            String?
+  selector       String?
+  evidence       Json
+  recommendation String
+  impact         String?
+
+  detectedBy String
+  occurrences Int    @default(1)
+  // Additional URLs affected by the same rule, kept so the report can show
+  // "and N more" without creating one finding per instance.
+  affectedUrls Json?
+
+  // --- Human QA review layer ---
+  status          FindingStatus @default(PENDING_REVIEW)
+  originalSeverity Severity?
+  qaNote          String?
+  editedTitle     String?
+  editedDescription String?
+  reviewedAt      DateTime?
+  reviewedById    String?
+  reviewedBy      User?         @relation("FindingReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  // --- AI enrichment (traceable to the evidence above, never invented) ---
+  aiSummary   String?
+  aiImpact    String?
+  aiRemediation String?
+
+  detectedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([auditId])
+  @@index([auditId, severity])
+  @@index([auditId, category])
+  @@map("findings")
+}
+
+model AuditCategoryScore {
+  id      String @id @default(cuid())
+  auditId String
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  category     FindingCategory
+  score        Int
+  weight       Float
+  findingCount Int             @default(0)
+  passedChecks Int             @default(0)
+  summary      String?
+
+  @@unique([auditId, category])
+  @@index([auditId])
+  @@map("audit_category_scores")
+}
+
+model AuditReview {
+  id      String @id @default(cuid())
+  auditId String @unique
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  reviewerId String?
+  reviewer   User?   @relation(fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  engineerNotes  String?
+  // A number a reviewer typed in by hand. Wins over everything.
+  scoreOverride  Int?
+  // The score recalculated from the findings the reviewer kept. Distinct from
+  // the audit's overallScore, which stays as the automated engine produced it
+  // so the admin UI can still show what changed.
+  reviewedScore  Int?
+  approved       Boolean  @default(false)
+  approvedAt     DateTime?
+  keptCount      Int      @default(0)
+  ignoredCount   Int      @default(0)
+  editedCount    Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("audit_reviews")
+}
+
+model Report {
+  id      String @id @default(cuid())
+  auditId String
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  version     Int      @default(1)
+  filePath    String?
+  byteSize    Int?
+  checksum    String?
+  includesAi  Boolean  @default(false)
+  reviewed    Boolean  @default(false)
+  generatedAt DateTime @default(now())
+
+  @@index([auditId])
+  @@map("reports")
+}
+
+model Lead {
+  id String @id @default(cuid())
+
+  companyName String?
+  contactName String?
+  email       String?
+  website     String
+  industry    String?
+  focusAreas  String?
+
+  followUpStatus LeadFollowUpStatus @default(NEW)
+  internalNotes  String?
+  sourceIp       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  audits Audit[]
+
+  @@index([email])
+  @@index([followUpStatus])
+  @@map("leads")
+}
+
+// Persistent abuse counters so rate limits survive a restart.
+model RateLimitCounter {
+  id        String   @id @default(cuid())
+  scope     String
+  key       String
+  windowKey String
+  count     Int      @default(0)
+  expiresAt DateTime
+
+  @@unique([scope, key, windowKey])
+  @@index([expiresAt])
+  @@map("rate_limit_counters")
+}
